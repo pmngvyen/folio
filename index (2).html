@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Folio — Book Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header id="site-header">
+  <div class="logo" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+    <div class="logo-icon"></div>
+    Folio
+  </div>
+  <div class="header-right">
+    <div class="header-stats">
+      <div class="stat-pill"><strong id="stat-total">0</strong> books</div>
+      <div class="stat-pill"><strong id="stat-read">0</strong> read</div>
+      <div class="stat-pill"><strong id="stat-reading">0</strong> reading</div>
+      <span class="sync-indicator" id="sync-indicator"><span class="sync-dot"></span>Synced</span>
+    </div>
+    <button class="signin-btn" id="signin-btn">Sign In</button>
+    <div class="account-menu-wrap" id="account-menu-wrap" style="display:none;">
+      <button class="account-btn" id="account-btn">
+        <span class="account-avatar" id="account-avatar">?</span>
+        <span id="account-label">Account</span>
+      </button>
+      <div class="account-dropdown" id="account-dropdown">
+        <div class="account-dropdown-header">
+          Signed in as<strong id="account-email"></strong>
+        </div>
+        <button class="account-dropdown-item" id="view-profile-btn">View my public profile</button>
+        <button class="account-dropdown-item" id="friends-btn">Friends <span id="friend-req-badge" class="friend-req-badge" style="display:none;"></span></button>
+        <button class="account-dropdown-item" id="sync-now-btn">Sync library now</button>
+        <button class="account-dropdown-item danger" id="logout-btn">Sign out</button>
+        <div class="share-link-box">
+          <label>Shareable profile link</label>
+          <div class="share-link-row">
+            <input type="text" id="share-link-input" readonly />
+            <button id="copy-share-link">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="share-banner" id="share-banner">
+  Viewing <strong id="share-banner-name">someone's</strong> library in read-only mode.
+  <a id="share-banner-exit">Go to my own library</a>
+</div>
+
+<!-- FRIENDS MODAL -->
+<div class="friends-modal-overlay" id="friends-modal-overlay">
+  <div class="friends-modal">
+    <div class="friends-modal-header">
+      <span class="friends-modal-title">Friends</span>
+      <button class="friends-modal-close" id="friends-modal-close">✕</button>
+    </div>
+
+    <!-- Search for users -->
+    <div class="friends-search-wrap">
+      <input type="text" id="friends-search-input" placeholder="Search by name or email…" autocomplete="off" />
+      <button id="friends-search-btn">Search</button>
+    </div>
+    <div id="friends-search-results"></div>
+
+    <!-- Pending incoming requests -->
+    <div id="friend-requests-section" style="display:none">
+      <div class="friends-section-label">Requests received</div>
+      <div id="friend-requests-list"></div>
+    </div>
+
+    <!-- Accepted friends -->
+    <div class="friends-section-label" style="margin-top:18px">Your friends</div>
+    <div id="friends-list">
+      <div class="friends-empty">No friends yet — search for someone above.</div>
+    </div>
+  </div>
+</div>
+
+<!-- FRIEND PROFILE PANEL (overlays main content) -->
+<div class="friend-profile-overlay" id="friend-profile-overlay" style="display:none">
+  <div class="friend-profile-panel">
+    <div class="friend-profile-header">
+      <button class="friend-profile-back" id="friend-profile-back">← Back</button>
+      <div class="friend-profile-meta">
+        <div class="friend-profile-avatar" id="friend-profile-avatar"></div>
+        <div>
+          <div class="friend-profile-name" id="friend-profile-name"></div>
+          <div class="friend-profile-stats" id="friend-profile-stats"></div>
+        </div>
+      </div>
+    </div>
+    <div class="friend-profile-shelves" id="friend-profile-shelves"></div>
+  </div>
+</div>
+
+<section class="hero">
+  <h1>Your reading life, <em>all in one place.</em></h1>
+  <p class="hero-sub">Search for any book and add it to your shelves.</p>
+  <div class="search-wrap">
+    <input type="text" id="search-input" placeholder="Search by title or author…" autocomplete="off" />
+    <button class="search-btn" id="search-btn" aria-label="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </button>
+    <div class="search-results" id="search-results"></div>
+  </div>
+</section>
+
+<main id="main-shelves"></main>
+
+<!-- AUTH MODAL -->
+<div class="auth-modal-overlay" id="auth-modal-overlay">
+  <div class="auth-modal">
+    <button class="auth-close" id="auth-close">✕</button>
+    <div class="auth-modal-title" id="auth-modal-title">Welcome back</div>
+    <div class="auth-modal-sub" id="auth-modal-sub">Sign in to sync your library across devices.</div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" />
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <div class="auth-field" id="auth-displayname-field" style="display:none;">
+      <label>Display name</label>
+      <input type="text" id="auth-displayname" placeholder="How others will see you" />
+    </div>
+    <button class="auth-submit-btn" id="auth-submit-btn">Sign In</button>
+    <div class="auth-switch" id="auth-switch">
+      Don't have an account? <button id="auth-switch-btn">Sign up</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-inner" id="modal-inner"></div>
+  </div>
+</div>
+
+<div class="status-add-modal" id="status-add-modal">
+  <div class="status-add-inner">
+    <div class="status-add-title">Add to shelf</div>
+    <div class="status-add-book" id="status-add-book-name"></div>
+    <div class="status-add-options" id="status-add-options"></div>
+    <button class="status-add-cancel" id="status-add-cancel">Cancel</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- FIREBASE SDK -->
+<script type="module" src="firebase.js"></script>
+
+<script src="main.js"></script>
+</body>
+</html>
