@@ -327,6 +327,21 @@
       font-size: 0.82rem;
       text-decoration: underline;
     }
+    .auth-forgot {
+      text-align: center;
+      margin-top: 10px;
+      display: none;
+    }
+    .auth-forgot button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      cursor: pointer;
+      text-decoration: underline;
+      transition: color var(--transition);
+    }
+    .auth-forgot button:hover { color: var(--accent); }
     .auth-close {
       position: absolute;
       top: 14px; right: 14px;
@@ -1697,6 +1712,9 @@
     <div class="auth-switch" id="auth-switch">
       Don't have an account? <button id="auth-switch-btn">Sign up</button>
     </div>
+    <div class="auth-forgot" id="auth-forgot">
+      <button id="auth-forgot-btn">Forgot password?</button>
+    </div>
   </div>
 </div>
 
@@ -1722,7 +1740,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    signOut, onAuthStateChanged, updateProfile
+    signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
     getFirestore, doc, setDoc, getDoc, collection, getDocs,
@@ -1749,7 +1767,7 @@
   window.__firebase = {
     auth, db,
     createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-    onAuthStateChanged, updateProfile,
+    onAuthStateChanged, updateProfile, sendPasswordResetEmail,
     doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch, serverTimestamp,
     query, where
   };
@@ -2305,24 +2323,31 @@ function openAuthModal(mode) {
   authEmailInput.value = '';
   authPassInput.value = '';
   authNameInput.value = '';
+  // Restore fields that reset mode may have hidden
+  authEmailInput.closest('.auth-field').style.display = 'block';
+  authPassInput.closest('.auth-field').style.display = 'block';
+  authSubmitBtn.style.display = 'block';
   renderAuthModeUI();
   authOverlay.classList.add('open');
 }
 function closeAuthModal() { authOverlay.classList.remove('open'); }
 
 function renderAuthModeUI() {
+  const forgotEl = document.getElementById('auth-forgot');
   if (authMode === 'login') {
     authTitle.textContent = 'Welcome back';
     authSub.textContent = 'Sign in to sync your library across devices.';
     authNameField.style.display = 'none';
     authSubmitBtn.textContent = 'Sign In';
     authSwitch.innerHTML = `Don't have an account? <button id="auth-switch-btn">Sign up</button>`;
+    forgotEl.style.display = 'block';
   } else {
     authTitle.textContent = 'Create your account';
     authSub.textContent = 'Track your reading and share it with friends.';
     authNameField.style.display = 'block';
     authSubmitBtn.textContent = 'Sign Up';
     authSwitch.innerHTML = `Already have an account? <button id="auth-switch-btn">Sign in</button>`;
+    forgotEl.style.display = 'none';
   }
   document.getElementById('auth-switch-btn').addEventListener('click', () => {
     openAuthModal(authMode === 'login' ? 'signup' : 'login');
@@ -2333,11 +2358,45 @@ document.getElementById('signin-btn').addEventListener('click', () => openAuthMo
 document.getElementById('auth-close').addEventListener('click', closeAuthModal);
 authOverlay.addEventListener('click', e => { if (e.target === authOverlay) closeAuthModal(); });
 
+document.getElementById('auth-forgot-btn').addEventListener('click', () => {
+  // Switch modal to reset mode
+  authTitle.textContent = 'Reset password';
+  authSub.textContent = 'Enter your email and we\'ll send a reset link.';
+  authNameField.style.display = 'none';
+  document.getElementById('auth-password').closest('.auth-field').style.display = 'none';
+  authSubmitBtn.textContent = 'Send reset email';
+  authSwitch.innerHTML = `<button id="auth-switch-btn">Back to sign in</button>`;
+  document.getElementById('auth-forgot').style.display = 'none';
+  authError.classList.remove('show');
+  authMode = 'reset';
+  document.getElementById('auth-switch-btn').addEventListener('click', () => openAuthModal('login'));
+});
+
 authSubmitBtn.addEventListener('click', async () => {
   if (!fb) { showAuthError('Still connecting — try again in a moment.'); return; }
   const email = authEmailInput.value.trim();
   const pass  = authPassInput.value;
   const name  = authNameInput.value.trim();
+
+  if (authMode === 'reset') {
+    if (!email) { showAuthError('Please enter your email address.'); return; }
+    authSubmitBtn.disabled = true;
+    authSubmitBtn.textContent = 'Sending…';
+    try {
+      await fb.sendPasswordResetEmail(fb.auth, email);
+      authTitle.textContent = 'Email sent!';
+      authSub.textContent = `Check your inbox at ${email} for a reset link.`;
+      authSubmitBtn.style.display = 'none';
+      authEmailInput.closest('.auth-field').style.display = 'none';
+      authSwitch.innerHTML = `<button id="auth-switch-btn">Back to sign in</button>`;
+      document.getElementById('auth-switch-btn').addEventListener('click', () => openAuthModal('login'));
+    } catch (err) {
+      showAuthError(friendlyAuthError(err.code));
+      authSubmitBtn.disabled = false;
+      authSubmitBtn.textContent = 'Send reset email';
+    }
+    return;
+  }
 
   if (!email || !pass) { showAuthError('Please fill in both fields.'); return; }
   if (authMode === 'signup' && pass.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
@@ -2357,7 +2416,7 @@ authSubmitBtn.addEventListener('click', async () => {
     showAuthError(friendlyAuthError(err.code));
   } finally {
     authSubmitBtn.disabled = false;
-    renderAuthModeUI();
+    if (authMode !== 'reset') renderAuthModeUI();
   }
 });
 
@@ -2392,6 +2451,10 @@ document.addEventListener('click', e => {
 document.getElementById('logout-btn').addEventListener('click', async () => {
   if (!fb) return;
   await fb.signOut(fb.auth);
+  library = [];
+  localStorage.removeItem(STORAGE_KEY);
+  renderAll();
+  updateStats();
   accountDropdown.classList.remove('open');
   toast('Signed out');
 });
