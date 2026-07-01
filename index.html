@@ -2726,11 +2726,12 @@ async function sendFriendRequest(targetUser) {
 // ── Load incoming requests ────────────────────────────────────────────────
 async function loadFriendRequests() {
   if (!fb || !currentUser) return;
+  updateRequestBadge(0); // always reset first
   try {
     const snap = await fb.getDocs(fb.collection(fb.db, 'users', currentUser.uid, 'friendRequests'));
     const section = document.getElementById('friend-requests-section');
     const list    = document.getElementById('friend-requests-list');
-    if (snap.empty) { section.style.display = 'none'; updateRequestBadge(0); return; }
+    if (snap.empty) { section.style.display = 'none'; return; }
 
     section.style.display = 'block';
     updateRequestBadge(snap.size);
@@ -2782,7 +2783,7 @@ async function acceptFriendRequest(req, fromUid) {
 function updateRequestBadge(count) {
   const badge = document.getElementById('friend-req-badge');
   if (count > 0) { badge.textContent = count; badge.style.display = 'inline-flex'; }
-  else { badge.style.display = 'none'; }
+  else { badge.style.display = 'none'; badge.textContent = ''; }
 }
 
 // ── Load friends list ─────────────────────────────────────────────────────
