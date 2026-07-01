@@ -311,7 +311,7 @@
       margin-top: 6px;
     }
     .auth-submit-btn:hover { background: var(--accent-dark); transform: translateY(-1px); }
-    .auth-submit-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
+    .auth-submit-btn:disabled { opacity: 0.7; cursor: default; transform: none; }
     .auth-switch {
       text-align: center;
       font-size: 0.82rem;
@@ -2373,7 +2373,12 @@ document.getElementById('auth-forgot-btn').addEventListener('click', () => {
 });
 
 authSubmitBtn.addEventListener('click', async () => {
-  if (!fb) { showAuthError('Still connecting — try again in a moment.'); return; }
+  // Wait for Firebase if it hasn't loaded yet
+  if (!fb) {
+    await new Promise(resolve => window.addEventListener('firebase-ready', resolve, { once: true }));
+  }
+  if (!fb) { showAuthError('Could not connect to Firebase. Please refresh and try again.'); return; }
+
   const email = authEmailInput.value.trim();
   const pass  = authPassInput.value;
   const name  = authNameInput.value.trim();
@@ -2413,6 +2418,7 @@ authSubmitBtn.addEventListener('click', async () => {
     }
     closeAuthModal();
   } catch (err) {
+    console.error('Auth error:', err);
     showAuthError(friendlyAuthError(err.code));
   } finally {
     authSubmitBtn.disabled = false;
