@@ -2310,8 +2310,11 @@ function openAuthModal(mode) {
   authEmailInput.closest('.auth-field').style.display = 'block';
   authPassInput.closest('.auth-field').style.display = 'block';
   authSubmitBtn.style.display = 'block';
+  authSubmitBtn.disabled = false;  // always re-enable on open
   renderAuthModeUI();
   authOverlay.classList.add('open');
+  // Focus email field after transition
+  setTimeout(() => authEmailInput.focus(), 80);
 }
 function closeAuthModal() { authOverlay.classList.remove('open'); }
 
@@ -2340,6 +2343,13 @@ function renderAuthModeUI() {
 document.getElementById('signin-btn').addEventListener('click', () => openAuthModal('login'));
 document.getElementById('auth-close').addEventListener('click', closeAuthModal);
 authOverlay.addEventListener('click', e => { if (e.target === authOverlay) closeAuthModal(); });
+
+// Submit on Enter key in any auth field
+[authEmailInput, authPassInput, authNameInput].forEach(input => {
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') authSubmitBtn.click();
+  });
+});
 
 document.getElementById('auth-forgot-btn').addEventListener('click', () => {
   // Switch modal to reset mode
@@ -2403,11 +2413,11 @@ authSubmitBtn.addEventListener('click', async () => {
       const cred = await fb.createUserWithEmailAndPassword(fb.auth, email, pass);
       if (name) await fb.updateProfile(cred.user, { displayName: name });
     }
-    // Success — close modal (onAuthStateChanged handles the rest)
     closeAuthModal();
   } catch (err) {
-    console.error('Auth error code:', err.code, err.message);
+    console.error('Auth error:', err.code, err.message);
     showAuthError(friendlyAuthError(err.code));
+  } finally {
     authSubmitBtn.disabled = false;
     authSubmitBtn.textContent = authMode === 'login' ? 'Sign In' : 'Sign Up';
   }
