@@ -1760,7 +1760,18 @@
   const _auth = getAuth(_app);
   const _db = getFirestore(_app);
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
+  window.__firebase = {
+    auth: _auth, db: _db,
+    createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
+    onAuthStateChanged, updateProfile, sendPasswordResetEmail,
+    doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch, serverTimestamp,
+    query, where
+  };
+
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<script>
 const STORAGE_KEY = 'folio_library_v2';
 let library = [];
 
@@ -2534,20 +2545,14 @@ function applyReadOnlyMode(ownerName) {
 }
 
 // ─── FIREBASE READY → WIRE UP AUTH LISTENER ──────────────────────────────────
-// Assign fb immediately since we're now in the same module scope as Firebase
-fb = {
-  auth: _auth, db: _db,
-  createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-  onAuthStateChanged, updateProfile, sendPasswordResetEmail,
-  doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch, serverTimestamp,
-  query, where
-};
+window.addEventListener('firebase-ready', () => {
+  fb = window.__firebase;
 
-const params = new URLSearchParams(location.search);
+  const params = new URLSearchParams(location.search);
   const profileId = params.get('profile');
 
   if (profileId) {
-    // Read-only shared profile view — load that user's data, skip normal auth flow
+    // Read-only shared profile view
     viewingProfileId = profileId;
     loadLibraryFromCloud(profileId).then(data => {
       if (data && Array.isArray(data.library)) {
@@ -2561,7 +2566,7 @@ const params = new URLSearchParams(location.search);
       updateStats();
     });
     document.getElementById('signin-btn').style.display = 'none';
-    return; // don't run normal onAuthStateChanged flow in shared view
+    return; // safe — we're inside the event listener callback
   }
 
   fb.onAuthStateChanged(fb.auth, async (user) => {
@@ -2569,24 +2574,20 @@ const params = new URLSearchParams(location.search);
     updateAuthUI(user);
 
     if (user) {
-      // Load whatever is already in the cloud
       const cloudData = await loadLibraryFromCloud(user.uid);
 
       if (cloudData && Array.isArray(cloudData.library) && cloudData.library.length > 0) {
-        // Cloud has data — use it (cloud is source of truth when signed in)
         library = cloudData.library;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
         renderAll();
         updateStats();
         toast(`Welcome back, ${user.displayName || user.email}`);
       } else {
-        // Cloud is empty — immediately push local library up so profile is visible
         const localLib = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         library = localLib;
         renderAll();
         updateStats();
-        toast(`Signed in — syncing your library…`);
-        // Force immediate write (skip debounce)
+        toast('Signed in — syncing your library…');
         try {
           await fb.setDoc(
             fb.doc(fb.db, 'users', user.uid),
