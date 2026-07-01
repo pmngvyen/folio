@@ -238,6 +238,7 @@
     }
     .shelf {
       margin-bottom: 56px;
+      scroll-margin-top: 80px;
     }
     .shelf-head {
       display: flex;
@@ -1107,7 +1108,7 @@ heroInput.addEventListener('input', () => {
       heroInput.value = '';
       const track = document.getElementById(`track-${genreMatch}`);
       if (track) {
-        track.closest('.shelf').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        scrollToShelf(track.closest('.shelf'));
         const label = track.closest('.shelf').querySelector('.shelf-title');
         label.style.transition = 'color 0.3s';
         label.style.color = '#D4A853';
@@ -1132,6 +1133,13 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.hero-search-wrap')) heroResults.classList.remove('open');
 });
 
+// Scroll to shelf with nav offset
+function scrollToShelf(shelfEl) {
+  const navH = document.querySelector('nav')?.offsetHeight || 60;
+  const head = shelfEl.querySelector('.shelf-head') || shelfEl;
+  const top = head.getBoundingClientRect().top + window.scrollY - navH - 90;
+  window.scrollTo({ top, behavior: 'smooth' });
+}
 // Genre keyword map → shelf key
 const GENRE_KEYWORDS = {
   'bestseller': 'bestsellers', 'bestsellers': 'bestsellers', 'popular': 'bestsellers',
