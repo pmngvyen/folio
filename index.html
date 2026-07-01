@@ -1747,8 +1747,6 @@
     deleteDoc, writeBatch, serverTimestamp, query, where
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // ⚠️ Replace these values with YOUR Firebase project config
-  // (Firebase console → Project settings → scroll to "Your apps")
   const firebaseConfig = {
     apiKey: "AIzaSyB8h0HD_hTjQdQn5AnKEqKpOCNHV9NMY1U",
     authDomain: "folio-tracker-c39e5.firebaseapp.com",
@@ -1758,25 +1756,10 @@
     appId: "1:353210624507:web:4831c98a8c8a9de04f435e"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+  const _app = initializeApp(firebaseConfig);
+  const _auth = getAuth(_app);
+  const _db = getFirestore(_app);
 
-  // Expose what the main script needs on window, since the main script
-  // is a plain (non-module) script and can't use ES import syntax directly.
-  window.__firebase = {
-    auth, db,
-    createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-    onAuthStateChanged, updateProfile, sendPasswordResetEmail,
-    doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch, serverTimestamp,
-    query, where
-  };
-
-  // Signal to the main script that Firebase is ready
-  window.dispatchEvent(new Event('firebase-ready'));
-</script>
-
-<script>
 // ─── DATA ────────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'folio_library_v2';
 let library = [];
@@ -1785,7 +1768,7 @@ let library = [];
 let currentUser = null;        // Firebase user object, or null if signed out
 let viewingProfileId = null;   // set when viewing someone else's shared profile (read-only)
 let isReadOnly = false;
-let fb = null;                 // populated once firebase-ready fires
+let fb = null;                 // set once Firebase module initializes
 let authMode = 'login';        // 'login' or 'signup'
 
 function loadLibrary() {
@@ -2373,10 +2356,6 @@ document.getElementById('auth-forgot-btn').addEventListener('click', () => {
 });
 
 authSubmitBtn.addEventListener('click', async () => {
-  // Wait for Firebase if it hasn't loaded yet
-  if (!fb) {
-    await new Promise(resolve => window.addEventListener('firebase-ready', resolve, { once: true }));
-  }
   if (!fb) { showAuthError('Could not connect to Firebase. Please refresh and try again.'); return; }
 
   const email = authEmailInput.value.trim();
@@ -2537,10 +2516,16 @@ function applyReadOnlyMode(ownerName) {
 }
 
 // ─── FIREBASE READY → WIRE UP AUTH LISTENER ──────────────────────────────────
-window.addEventListener('firebase-ready', () => {
-  fb = window.__firebase;
+// Assign fb immediately since we're now in the same module scope as Firebase
+fb = {
+  auth: _auth, db: _db,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
+  onAuthStateChanged, updateProfile, sendPasswordResetEmail,
+  doc, setDoc, getDoc, collection, getDocs, deleteDoc, writeBatch, serverTimestamp,
+  query, where
+};
 
-  const params = new URLSearchParams(location.search);
+const params = new URLSearchParams(location.search);
   const profileId = params.get('profile');
 
   if (profileId) {
@@ -2918,6 +2903,7 @@ setInterval(() => { if (currentUser && fb) loadFriendRequests(); }, 60000);
 loadLibrary();
 renderAll();
 updateStats();
+
 
 </script>
 </body>
