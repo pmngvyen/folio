@@ -2356,12 +2356,18 @@ document.getElementById('auth-forgot-btn').addEventListener('click', () => {
 });
 
 authSubmitBtn.addEventListener('click', async () => {
-  if (!fb) { showAuthError('Could not connect to Firebase. Please refresh and try again.'); return; }
+  authError.classList.remove('show');
+
+  if (!fb) {
+    showAuthError('Still connecting to Firebase — please wait a moment and try again.');
+    return;
+  }
 
   const email = authEmailInput.value.trim();
   const pass  = authPassInput.value;
   const name  = authNameInput.value.trim();
 
+  // ── Reset password mode ──────────────────────────────────
   if (authMode === 'reset') {
     if (!email) { showAuthError('Please enter your email address.'); return; }
     authSubmitBtn.disabled = true;
@@ -2375,6 +2381,7 @@ authSubmitBtn.addEventListener('click', async () => {
       authSwitch.innerHTML = `<button id="auth-switch-btn">Back to sign in</button>`;
       document.getElementById('auth-switch-btn').addEventListener('click', () => openAuthModal('login'));
     } catch (err) {
+      console.error('Reset error:', err);
       showAuthError(friendlyAuthError(err.code));
       authSubmitBtn.disabled = false;
       authSubmitBtn.textContent = 'Send reset email';
@@ -2382,7 +2389,8 @@ authSubmitBtn.addEventListener('click', async () => {
     return;
   }
 
-  if (!email || !pass) { showAuthError('Please fill in both fields.'); return; }
+  // ── Login / signup mode ──────────────────────────────────
+  if (!email || !pass) { showAuthError('Please enter your email and password.'); return; }
   if (authMode === 'signup' && pass.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
 
   authSubmitBtn.disabled = true;
@@ -2395,13 +2403,13 @@ authSubmitBtn.addEventListener('click', async () => {
       const cred = await fb.createUserWithEmailAndPassword(fb.auth, email, pass);
       if (name) await fb.updateProfile(cred.user, { displayName: name });
     }
+    // Success — close modal (onAuthStateChanged handles the rest)
     closeAuthModal();
   } catch (err) {
-    console.error('Auth error:', err);
+    console.error('Auth error code:', err.code, err.message);
     showAuthError(friendlyAuthError(err.code));
-  } finally {
     authSubmitBtn.disabled = false;
-    if (authMode !== 'reset') renderAuthModeUI();
+    authSubmitBtn.textContent = authMode === 'login' ? 'Sign In' : 'Sign Up';
   }
 });
 
