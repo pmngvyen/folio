@@ -839,11 +839,29 @@ const PALETTE = [
 ];
 
 // ─── FETCH SHELF ─────────────────────────────────────────────────────────────
+// Seeded shuffle — same seed = same order, different seed = different order
+function seededShuffle(arr, seed) {
+  const a = [...arr];
+  let s = seed;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    const j = Math.abs(s) % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getDailySeed(genreKey) {
+  const d = new Date();
+  const datePart = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  const genrePart = genreKey.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return datePart + genrePart;
+}
+
 async function fetchShelf(def, seenKeys) {
-  // Fetch from all queries in parallel, then merge + dedupe
   const results = await Promise.all(
     def.queries.map(q =>
-      fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&fields=key,title,author_name,first_publish_year,cover_i,cover_edition_key&limit=40&sort=rating`)
+      fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&fields=key,title,author_name,first_publish_year,cover_i,cover_edition_key&limit=60&sort=rating`)
         .then(r => r.json())
         .then(d => d.docs || [])
         .catch(() => [])
@@ -867,9 +885,11 @@ async function fetchShelf(def, seenKeys) {
   // Prefer books with covers; fall back to all if not enough
   const withCovers = fresh.filter(w => w.cover_i);
   const pool = withCovers.length >= 16 ? withCovers : fresh;
-  const picked = pool.slice(0, 20);
 
-  // Register these keys as seen
+  // Shuffle using today's date + genre as seed so it rotates daily
+  const shuffled = seededShuffle(pool, getDailySeed(def.key));
+  const picked = shuffled.slice(0, 20);
+
   picked.forEach(w => seenKeys.add(w.key));
 
   return picked.map(w => ({
